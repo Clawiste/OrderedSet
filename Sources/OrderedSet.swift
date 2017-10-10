@@ -9,7 +9,7 @@
 /// An ordered, unique collection of objects.
 public struct OrderedSet<T: Hashable> {
     fileprivate var contents = [T: Index]() // Needs to have a value of Index instead of Void for fast removals
-    fileprivate var sequencedContents = Array<UnsafeMutablePointer<T>>()
+    fileprivate var sequencedContents = [UnsafeMutablePointer<T>]()
     
     /**
      Inititalizes an empty ordered set.
@@ -250,7 +250,7 @@ public struct OrderedSet<T: Hashable> {
      - parameter     toIndex:    The index that the object should be moved to.
      */
     public mutating func moveObject(at index: Index, to toIndex: Index) {
-        if ((index < 0 || index >= count) || (toIndex < 0 || toIndex >= count)) {
+        if (index < 0 || index >= count) || (toIndex < 0 || toIndex >= count) {
             fatalError("Attempting to move an object at or to an index that does not exist")
         }
         
@@ -320,7 +320,7 @@ public struct OrderedSet<T: Hashable> {
     public func copy() -> OrderedSet<T> {
         return OrderedSet<T>(sequence: self)
     }
-
+    
     /// Returns the last object in the set, or `nil` if the set is empty.
     public var last: T? {
         return sequencedContents.last?.pointee
@@ -345,11 +345,11 @@ extension OrderedSet {
         guard count > 0 else { return nil }
         return sequencedContents[0].pointee
     }
-
-    public func index(after i: Int) -> Int {
-        return sequencedContents.index(after: i)
+    
+    public func index(after index: Int) -> Int {
+        return sequencedContents.index(after: index)
     }
-
+    
     public typealias Index = Int
     
     public var startIndex: Int {
@@ -380,7 +380,7 @@ extension OrderedSet {
             }
         }
     }
-
+    
 }
 
 extension  OrderedSet: Sequence {
@@ -393,7 +393,7 @@ extension  OrderedSet: Sequence {
 
 public struct OrderedSetGenerator<T: Hashable>: IteratorProtocol {
     public typealias Element = T
-    private var generator: IndexingIterator<Array<UnsafeMutablePointer<T>>>
+    private var generator: IndexingIterator<[UnsafeMutablePointer<T>]>
     
     public init(set: OrderedSet<T>) {
         generator = set.sequencedContents.makeIterator()
