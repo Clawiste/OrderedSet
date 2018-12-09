@@ -1,10 +1,5 @@
-//
-//  OrderedSet.swift
-//  Weebly
-//
-//  Created by James Richard on 10/22/14.
-//  Copyright (c) 2014 Weebly.
-//
+//  Copyright (c) 2014 James Richard. 
+//  Distributed under the MIT License (http://opensource.org/licenses/MIT).
 
 /// An ordered, unique collection of objects.
 public struct OrderedSet<T: Hashable> {
@@ -26,26 +21,22 @@ public struct OrderedSet<T: Hashable> {
      - returns:                 An initialized ordered set with the contents of sequence.
      */
     public init<S: Sequence>(sequence: S) where S.Iterator.Element == T {
-        for object in sequence {
-            if contents[object] == nil {
-                contents[object] = contents.count
-                
-                let pointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
-                pointer.initialize(to: object)
-                sequencedContents.append(pointer)
-            }
+        for object in sequence where contents[object] == nil {
+            contents[object] = contents.count
+            
+            let pointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
+            pointer.initialize(to: object)
+            sequencedContents.append(pointer)
         }
     }
-
+    
     public init(arrayLiteral elements: T...) {
-        for object in elements {
-            if contents[object] == nil {
-                contents[object] = contents.count
-                
-                let pointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
-                pointer.initialize(to: object)
-                sequencedContents.append(pointer)
-            }
+        for object in elements where contents[object] == nil {
+            contents[object] = contents.count
+            
+            let pointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
+            pointer.initialize(to: object)
+            sequencedContents.append(pointer)
         }
     }
     
@@ -97,8 +88,10 @@ public struct OrderedSet<T: Hashable> {
      If it is not the last object in the ordered set, subsequent
      objects will be shifted down one position.
      - parameter    object: The object to be removed.
+     - returns: The former index position of the object.
      */
-    public mutating func remove(_ object: T) {
+    @discardableResult
+    public mutating func remove(_ object: T) -> Index? {
         if let index = contents[object] {
             contents[object] = nil
             sequencedContents[index].deinitialize(count: 1)
@@ -112,18 +105,32 @@ public struct OrderedSet<T: Hashable> {
                 
                 contents[object] = i - 1
             }
+            
+            return index
         }
+        return nil
     }
     
     /**
      Removes the given objects from the ordered set.
      - parameter    objects:    The objects to be removed.
+     - returns: A collection of the former index positions of the objects. An index position is not provided for objects that were not found.
      */
-    public mutating func remove<S: Sequence>(_ objects: S) where S.Iterator.Element == T {
+    @discardableResult
+    public mutating func remove<S: Sequence>(_ objects: S) -> [Index]? where S.Iterator.Element == T {
+        
+        var indexes = [Index]()
+        objects.forEach { object in
+            if let index = index(of: object) {
+                indexes.append(index)
+            }
+        }
+        
         var gen = objects.makeIterator()
         while let object: T = gen.next() {
             remove(object)
         }
+        return indexes
     }
     
     /**
@@ -295,16 +302,14 @@ public struct OrderedSet<T: Hashable> {
         }
         
         var addedObjectCount = 0
-
-        for object in objects {
-            if contents[object] == nil {
-                let seqIdx = index + addedObjectCount
-                let element = UnsafeMutablePointer<T>.allocate(capacity: 1)
-                element.initialize(to: object)
-                sequencedContents.insert(element, at: seqIdx)
-                contents[object] = seqIdx
-                addedObjectCount += 1
-            }
+        
+        for object in objects where contents[object] == nil {
+            let seqIdx = index + addedObjectCount
+            let element = UnsafeMutablePointer<T>.allocate(capacity: 1)
+            element.initialize(to: object)
+            sequencedContents.insert(element, at: seqIdx)
+            contents[object] = seqIdx
+            addedObjectCount += 1
         }
         
         // Now we'll remove duplicates and update the shifted objects position in the contents
@@ -315,7 +320,8 @@ public struct OrderedSet<T: Hashable> {
     }
     
     /**
-     Create a copy of the given ordered set with the same content. Important: the new array has the same references to the previous. This is NOT a deep copy or a clone! 
+     Create a copy of the given ordered set with the same content. Important: the new array has the
+     same references to the previous. This is NOT a deep copy or a clone!
      */
     public func copy() -> OrderedSet<T> {
         return OrderedSet<T>(sequence: self)
@@ -406,39 +412,37 @@ public struct OrderedSetGenerator<T: Hashable>: IteratorProtocol {
 
 extension OrderedSetGenerator where T: Comparable {}
 
-public func +<T: Hashable, S: Sequence> (lhs: OrderedSet<T>, rhs: S) -> OrderedSet<T> where S.Iterator.Element == T {
+public func +<T, S: Sequence> (lhs: OrderedSet<T>, rhs: S) -> OrderedSet<T> where S.Element == T {
     var joinedSet = lhs.copy()
     joinedSet.append(contentsOf: rhs)
     
     return joinedSet
 }
 
-public func +=<T: Hashable, S: Sequence> (lhs: inout OrderedSet<T>, rhs: S) where S.Iterator.Element == T {
+public func +=<T, S: Sequence> (lhs: inout OrderedSet<T>, rhs: S) where S.Element == T {
     lhs.append(contentsOf: rhs)
 }
 
-public func -<T: Hashable, S: Sequence> (lhs: OrderedSet<T>, rhs: S) -> OrderedSet<T> where S.Iterator.Element == T {
+public func -<T, S: Sequence> (lhs: OrderedSet<T>, rhs: S) -> OrderedSet<T> where S.Element == T {
     var purgedSet = lhs.copy()
     purgedSet.remove(rhs)
     
     return purgedSet
 }
 
-public func -=<T: Hashable, S: Sequence> (lhs: inout OrderedSet<T>, rhs: S) where S.Iterator.Element == T {
+public func -=<T, S: Sequence> (lhs: inout OrderedSet<T>, rhs: S) where S.Element == T {
     lhs.remove(rhs)
 }
 
 extension OrderedSet: Equatable { }
 
-public func ==<T: Hashable> (lhs: OrderedSet<T>, rhs: OrderedSet<T>) -> Bool {
+public func ==<T> (lhs: OrderedSet<T>, rhs: OrderedSet<T>) -> Bool {
     if lhs.count != rhs.count {
         return false
     }
     
-    for object in lhs {
-        if lhs.contents[object] != rhs.contents[object] {
-            return false
-        }
+    for object in lhs where lhs.contents[object] != rhs.contents[object] {
+        return false
     }
     
     return true
